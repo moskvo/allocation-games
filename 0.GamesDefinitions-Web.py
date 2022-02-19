@@ -321,19 +321,22 @@ class NashBargaining:
             s3[2] = s[2]
 
             F1 = Mechanism.f(s1)
-            F1_more_Fprev = 1.0 if (F1>Fprev+prec).all() else 0.0
-            F11_more_F1prev = 1.0 if (F1[0]>Fprev[0]+prec) else 0.0
+            F1_more_Fprev = 1.0 if (F1>Fprev+prec).all() else 0.0 # s1 - strong Pareto
+            F1_notless_Fprev = 1.0 if (F1>Fprev-prec).all() else 0.0 # s1 - weak Pareto
+            F11_more_F1prev = 1.0 if (F1[0]>Fprev[0]+prec) else 0.0 # gain of 1 player have increased with s1 bids
             U1 = self.Unash(F1,f0)
             U1_more_Uprev = 1.0 if U1>Uprev+prec else 0.0
 
             F2 = Mechanism.f(s2)
-            F2_more_Fprev = 1.0 if (F2>Fprev+prec).all() else 0.0
+            F2_more_Fprev = 1.0 if (F2>Fprev+prec).all() else 0.0 # s2 - strong Pareto
+            F2_notless_Fprev = 1.0 if (F2>Fprev-prec).all() else 0.0 # s2 - weak Pareto
             F22_more_F2prev = 1.0 if (F2[1]>Fprev[1]+prec) else 0.0
             U2 = self.Unash(F2,f0)
             U2_more_Uprev = 1.0 if U2>Uprev+prec else 0.0
 
             F3 = Mechanism.f(s3)
-            F3_more_Fprev = 1.0 if (F3>Fprev+prec).all() else 0.0
+            F3_more_Fprev = 1.0 if (F3>Fprev+prec).all() else 0.0 # s3 - strong Pareto
+            F3_notless_Fprev = 1.0 if (F3>Fprev-prec).all() else 0.0 # s3 - weak Pareto
             F33_more_F3prev = 1.0 if (F3[2]>Fprev[2]+prec) else 0.0
             U3 = self.Unash(F3,f0)
             U3_more_Uprev = 1.0 if U3>Uprev+prec else 0.0
@@ -341,7 +344,8 @@ class NashBargaining:
             Uall_more_Uprev = U1_more_Uprev + U2_more_Uprev + U3_more_Uprev
 
             Fnew = Mechanism.f(s)
-            Fnew_more_Fprev = 1.0 if (Fnew>Fprev+prec).all() else 0.0
+            Fnew_more_Fprev = 1.0 if (Fnew>Fprev+prec).all() else 0.0 # s - strong Pareto
+            Fnew_notless_Fprev = 1.0 if (Fnew>Fprev-prec).all() else 0.0 # s - weak Pareto
             Unew = self.Unash(Fnew,f0)
             Unew_more_Uprev = 1.0 if Unew>Uprev+prec else 0.0
 
@@ -367,12 +371,14 @@ class NashBargaining:
                                                           Uloc1_more_Ulocprev, Uloc2_more_Ulocprev, Uloc3_more_Ulocprev,
                                                           Uall_more_Uprev, Unew_more_Uprev,
                                                           Fnew_more_Fprev, F1_more_Fprev, F11_more_F1prev, F2_more_Fprev, F22_more_F2prev, F3_more_Fprev, F33_more_F3prev,
+                                                          Fnew_notless_Fprev, F1_notless_Fprev, F2_notless_Fprev, F3_notless_Fprev,
                                                           Uprev, U1,U2,U3, Uloc1,Uloc2,Uloc3, Unew,Ulocnew, Ulocnew_more_Ulocprev])] )
             prevg = group
         data_a = pd.DataFrame(np.vstack(res),
                           columns=['Game','Time','U1>Uprev','U2>Uprev','U3>Uprev','Uloc1>Ulocprev','Uloc2>Ulocprev','Uloc3>Ulocprev',
                                    'Uall>Uprev','Unew>Uprev',
                                    'Fnew>Fprev','F1>Fprev', 'F11>F1prev', 'F2>Fprev', 'F22>F2prev', 'F3>Fprev', 'F33>F3prev',
+                                   'Fnew>=Fprev','F1>=Fprev', 'F2>=Fprev', 'F3>=Fprev',
                                    'Uprev','U1','U2','U3','Uloc1','Uloc2','Uloc3','Unew','Ulocnew','Ulocnew>Ulocprev'])
 
         return data_a
@@ -415,18 +421,21 @@ class NashBargaining:
 
             F1 = Mechanism.f(s1, sprev, prev_xm, prev_y)
             F1_more_Fprev = 1.0 if (F1>Fprev+prec).all() else 0.0
+            F1_notless_Fprev = 1.0 if (F1>Fprev-prec).all() else 0.0
             F11_more_F1prev = 1.0 if (F1[0]>Fprev[0]+prec) else 0.0
             U1 = self.Unash(F1,f0)
             U1_more_Uprev = 1.0 if U1>Uprev+prec else 0.0
 
             F2 = Mechanism.f(s2, sprev, prev_xm, prev_y)
             F2_more_Fprev = 1.0 if (F2>Fprev+prec).all() else 0.0
+            F2_notless_Fprev = 1.0 if (F2>Fprev-prec).all() else 0.0
             F22_more_F2prev = 1.0 if (F2[1]>Fprev[1]+prec) else 0.0
             U2 = self.Unash(F2,f0)
             U2_more_Uprev = 1.0 if U2>Uprev+prec else 0.0
 
             F3 = Mechanism.f(s3, sprev, prev_xm, prev_y)
             F3_more_Fprev = 1.0 if (F3>Fprev+prec).all() else 0.0
+            F3_notless_Fprev = 1.0 if (F3>Fprev-prec).all() else 0.0
             F33_more_F3prev = 1.0 if (F3[2]>Fprev[2]+prec) else 0.0
             U3 = self.Unash(F3,f0)
             U3_more_Uprev = 1.0 if U3>Uprev+prec else 0.0
@@ -435,6 +444,7 @@ class NashBargaining:
 
             Fnew = Mechanism.f(s, sprev, prev_xm, prev_y)
             Fnew_more_Fprev = 1.0 if (Fnew>Fprev+prec).all() else 0.0
+            Fnew_notless_Fprev = 1.0 if (Fnew>Fprev-prec).all() else 0.0
             Unew = self.Unash(Fnew,f0)
             Unew_more_Uprev = 1.0 if Unew>Uprev+prec else 0.0
 
@@ -460,6 +470,7 @@ class NashBargaining:
                                                           Uloc1_more_Ulocprev, Uloc2_more_Ulocprev, Uloc3_more_Ulocprev,
                                                           Uall_more_Uprev, Unew_more_Uprev,
                                                           Fnew_more_Fprev, F1_more_Fprev, F11_more_F1prev, F2_more_Fprev, F22_more_F2prev, F3_more_Fprev, F33_more_F3prev,
+                                                          Fnew_notless_Fprev, F1_notless_Fprev, F2_notless_Fprev, F3_notless_Fprev,
                                                           Uprev, U1,U2,U3, Uloc1,Uloc2,Uloc3, Unew,Ulocnew, Ulocnew_more_Ulocprev])] )
             prevg = group
             prev_y = prev_y + np.mean(group.x) - Rmean
@@ -467,6 +478,7 @@ class NashBargaining:
                           columns=['Game','Time','U1>Uprev','U2>Uprev','U3>Uprev','Uloc1>Ulocprev','Uloc2>Ulocprev','Uloc3>Ulocprev',
                                    'Uall>Uprev','Unew>Uprev',
                                    'Fnew>Fprev','F1>Fprev', 'F11>F1prev', 'F2>Fprev', 'F22>F2prev', 'F3>Fprev', 'F33>F3prev',
+                                   'Fnew>=Fprev','F1>=Fprev', 'F2>=Fprev', 'F3>=Fprev',
                                    'Uprev','U1','U2','U3','Uloc1','Uloc2','Uloc3','Unew','Ulocnew','Ulocnew>Ulocprev'])
 
         return data_a
