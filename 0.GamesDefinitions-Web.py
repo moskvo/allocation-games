@@ -489,7 +489,7 @@ class NashBargaining:
 
 def NashData_bySubjects(Mechanism, GameData, d0, admmflag=False):
     def nbcols(i):
-        return ['Game','Time',f'U{i}>Uprev',f'Uloc{i}>Ulocprev', 'Uall>Uprev','Unew>Uprev','Fnew>Fprev',f'F{i}>Fprev',f'F{i}{i}>F{i}prev',f'U{i}',f'Uloc{i}','Unew','Uprev','Ulocnew','Ulocnew>Ulocprev']
+        return ['Game','Time',f'U{i}>Uprev',f'Uloc{i}>Ulocprev', 'Uall>Uprev','Unew>Uprev','Fnew>Fprev','Fnew>=Fprev',f'F{i}>Fprev',f'F{i}>=Fprev',f'F{i}{i}>F{i}prev',f'U{i}',f'Uloc{i}','Unew','Uprev','Ulocnew','Ulocnew>Ulocprev']
 
     f0 = Mechanism.game.u(d0)
     NB = NashBargaining(f0)
