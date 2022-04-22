@@ -182,7 +182,7 @@ class Mechanism:
     def t(self,s):
         return self.tfunc(s,self.game,self)
     def f(self,s):
-        return game.u(self.x(s))-self.t(s)
+        return self.game.u(self.x(s))-self.t(s)
 
 YHMechanism = Mechanism(game,
                         {'beta':0.0005}, 
@@ -220,9 +220,7 @@ class ADMMMechanismClass(Mechanism):
 
 # In[48]:
 
-
-print("BR")
-
+#print("BR")
 # s = np.array([[100.0, 4.5, 10.5], [49.0, 41.0, 25.0], [38.25, 27.75, 49.0 ]])
 # xmi = pd.DataFrame(s[1:3,:]).mean()
 # maxf = -10000
@@ -239,9 +237,6 @@ print("BR")
 #     if ( f > maxf ):
 #         maxf = f
 #         maxs = s11
-
-    
-
 
 # In[18]:
 
@@ -311,7 +306,9 @@ class NashBargaining:
             # предыдущие выигрыши
             #fprev = prevg['Gain'].values
             sprev = Mechanism.get_s(prevg)
-            Fprev = Mechanism.f(sprev)
+            xprev = Mechanism.x(sprev)
+            tprev = Mechanism.t(sprev)
+            Fprev = Mechanism.game.u(xprev) - tprev
             Uprev = self.Unash(Fprev,f0)
             s = Mechanism.get_s(group)
             s1, s2, s3 = sprev.copy(), sprev.copy(), sprev.copy()
@@ -320,7 +317,12 @@ class NashBargaining:
             s2[1] = s[1]
             s3[2] = s[2]
 
-            F1 = Mechanism.f(s1)
+            x1 = Mechanism.x(s1)
+            t1 = Mechanism.t(s1)
+            F1 = Mechanism.game.u(x1) - t1
+            ds1 = s1[0] - sprev[0]
+            dx1 = x1[0] - xprev[0]
+            dt1 = t1[0] - tprev[0]
             F1_more_Fprev = 1.0 if (F1>Fprev+prec).all() else 0.0 # s1 - strong Pareto
             F1_notless_Fprev = 1.0 if (F1>Fprev-prec).all() else 0.0 # 
             anyF1_more_Fprev = 1.0 if (F1>Fprev+prec).any() else 0.0 # F1_notless_Fprev and F1any_more_Fprev say that s1 - weak Pareto
@@ -328,7 +330,12 @@ class NashBargaining:
             U1 = self.Unash(F1,f0)
             U1_more_Uprev = 1.0 if U1>Uprev+prec else 0.0
 
-            F2 = Mechanism.f(s2)
+            x2 = Mechanism.x(s2)
+            t2 = Mechanism.t(s2)
+            F2 = Mechanism.game.u(x2) - t2
+            ds2 = s2[1] - sprev[1]
+            dx2 = x2[1] - xprev[1]
+            dt2 = t2[1] - tprev[1]
             F2_more_Fprev = 1.0 if (F2>Fprev+prec).all() else 0.0 # s2 - strong Pareto
             F2_notless_Fprev = 1.0 if (F2>Fprev-prec).all() else 0.0 # s2 - weak Pareto
             anyF2_more_Fprev = 1.0 if (F2>Fprev+prec).any() else 0.0 # F2_notless_Fprev and F2any_more_Fprev say that s2 - weak Pareto
@@ -336,7 +343,12 @@ class NashBargaining:
             U2 = self.Unash(F2,f0)
             U2_more_Uprev = 1.0 if U2>Uprev+prec else 0.0
 
-            F3 = Mechanism.f(s3)
+            x3 = Mechanism.x(s3)
+            t3 = Mechanism.t(s3)
+            F3 = Mechanism.game.u(x3) - t3
+            ds3 = s3[2] - sprev[2]
+            dx3 = x3[2] - xprev[2]
+            dt3 = t3[2] - tprev[2]
             F3_more_Fprev = 1.0 if (F3>Fprev+prec).all() else 0.0 # s3 - strong Pareto
             F3_notless_Fprev = 1.0 if (F3>Fprev-prec).all() else 0.0 # s3 - weak Pareto
             anyF3_more_Fprev = 1.0 if (F3>Fprev+prec).any() else 0.0 # F3_notless_Fprev and F3any_more_Fprev say that s3 - weak Pareto
@@ -373,14 +385,16 @@ class NashBargaining:
                                                           Uall_more_Uprev, Unew_more_Uprev,
                                                           Fnew_more_Fprev, F1_more_Fprev, F11_more_F1prev, F2_more_Fprev, F22_more_F2prev, F3_more_Fprev, F33_more_F3prev,
                                                           Fnew_notless_Fprev,anyFnew_more_Fprev, F1_notless_Fprev, anyF1_more_Fprev, F2_notless_Fprev,anyF2_more_Fprev, F3_notless_Fprev,anyF3_more_Fprev,
-                                                          Uprev, U1,U2,U3, Uloc1,Uloc2,Uloc3, Unew,Ulocnew, Ulocnew_more_Ulocprev])] )
+                                                          Uprev, U1,U2,U3, Uloc1,Uloc2,Uloc3, Unew,Ulocnew, Ulocnew_more_Ulocprev,
+                                                          ds1, ds2, ds3, dx1, dx2, dx3, dt1, dt2, dt3])] )
             prevg = group
         data_a = pd.DataFrame(np.vstack(res),
                           columns=['Game','Time','U1>Uprev','U2>Uprev','U3>Uprev','Uloc1>Ulocprev','Uloc2>Ulocprev','Uloc3>Ulocprev',
                                    'Uall>Uprev','Unew>Uprev',
                                    'Fnew>Fprev','F1>Fprev', 'F11>F1prev', 'F2>Fprev', 'F22>F2prev', 'F3>Fprev', 'F33>F3prev',
                                    'Fnew>=Fprev','anyFnew>Fprev','F1>=Fprev','anyF1>Fprev', 'F2>=Fprev','anyF2>Fprev', 'F3>=Fprev','anyF3>Fprev',
-                                   'Uprev','U1','U2','U3','Uloc1','Uloc2','Uloc3','Unew','Ulocnew','Ulocnew>Ulocprev'])
+                                   'Uprev','U1','U2','U3','Uloc1','Uloc2','Uloc3','Unew','Ulocnew','Ulocnew>Ulocprev',
+                                   'ds1', 'ds2', 'ds3', 'dx1', 'dx2', 'dx3', 'dt1', 'dt2', 'dt3'])
 
         return data_a
 
@@ -492,7 +506,8 @@ class NashBargaining:
 def NashData_bySubjects(Mechanism, GameData, d0, admmflag=False):
     def nbcols(i):
         return ['Game','Time',f'U{i}>Uprev',f'Uloc{i}>Ulocprev', 'Uall>Uprev','Unew>Uprev','Fnew>Fprev','Fnew>=Fprev', 'anyFnew>Fprev',
-                f'F{i}>Fprev',f'F{i}>=Fprev',f'anyF{i}>Fprev',f'F{i}{i}>F{i}prev',f'U{i}',f'Uloc{i}','Unew','Uprev','Ulocnew','Ulocnew>Ulocprev']
+                f'F{i}>Fprev',f'F{i}>=Fprev',f'anyF{i}>Fprev',f'F{i}{i}>F{i}prev',f'U{i}',f'Uloc{i}','Unew','Uprev','Ulocnew','Ulocnew>Ulocprev',
+                f'ds{i}',f'dx{i}',f'dt{i}']
 
     f0 = Mechanism.game.u(d0)
     NB = NashBargaining(f0)
