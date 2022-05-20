@@ -6,10 +6,6 @@
 
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import os.path as ospath
-
-from scipy.spatial import distance
 
 
 # In[7]:
@@ -487,7 +483,8 @@ class NashBargaining:
                                                 Uall_more_Uprev, Unew_more_Uprev,
                                                 Fnew_more_Fprev, F1_more_Fprev, F11_more_F1prev, F2_more_Fprev, F22_more_F2prev, F3_more_Fprev, F33_more_F3prev,
                                                 Fnew_notless_Fprev, anyFnew_more_Fprev, F1_notless_Fprev, anyF1_more_Fprev, F2_notless_Fprev, anyF2_more_Fprev, F3_notless_Fprev, anyF3_more_Fprev,
-                                                Uprev, U1,U2,U3, Uloc1,Uloc2,Uloc3, Unew,Ulocnew, Ulocnew_more_Ulocprev])] )
+                                                Uprev, U1,U2,U3, Uloc1,Uloc2,Uloc3, Unew,Ulocnew, Ulocnew_more_Ulocprev,
+                                                0,0,0, 0,0,0, 0,0,0])] )
             prevg = group
             prev_y = prev_y + np.mean(group.x) - Rmean
         data_a = pd.DataFrame(np.vstack(res),
@@ -495,7 +492,8 @@ class NashBargaining:
                                    'Uall>Uprev','Unew>Uprev',
                                    'Fnew>Fprev','F1>Fprev', 'F11>F1prev', 'F2>Fprev', 'F22>F2prev', 'F3>Fprev', 'F33>F3prev',
                                    'Fnew>=Fprev','anyFnew>Fprev', 'F1>=Fprev','anyF1>Fprev', 'F2>=Fprev','anyF2>Fprev', 'F3>=Fprev','anyF3>Fprev',
-                                   'Uprev','U1','U2','U3','Uloc1','Uloc2','Uloc3','Unew','Ulocnew','Ulocnew>Ulocprev'])
+                                   'Uprev','U1','U2','U3','Uloc1','Uloc2','Uloc3','Unew','Ulocnew','Ulocnew>Ulocprev',
+                                   'ds1', 'ds2', 'ds3', 'dx1', 'dx2', 'dx3', 'dt1', 'dt2', 'dt3'])
 
         return data_a
 
