@@ -170,20 +170,29 @@ class Mechanism:
         self.xfunc = xfunc
         self.tfunc = tfunc
         self.sfunc = sfunc
+        self.restart()
         
     def get_s(self,pandas_df):
         return self.sfunc(pandas_df)
-    def x(self,s):
-        return self.xfunc(s,self.game)
-    def t(self,s):
-        return self.tfunc(s,self.game,self)
-    def f(self,s):
-        return self.game.u(self.x(s))-self.t(s)
+
+    def restart(self):
+        self.s = self.game.s0
+
+    # result after step, don't save step s in history (here there is no history)
+    def if_step(self,s):
+        return self.step(s)
+    # result after step, save step s in history
+    def step(self,s):
+        self.s = s
+        self.x = self.xfunc(self.s,self.game)
+        self.t = self.tfunc(self.s,self.game,self)
+        self.f = self.game.u(self.x) - self.t
+        return { 'x':self.x, 't':self.t, 'f': self.f }
 
 YHMechanism = Mechanism(game,
                         {'beta':0.0005}, 
-                        lambda s,g: s*g.R/s.sum(),
-                        lambda s,g,m: m.beta*s*(np.repeat(s.sum(),3)-s),
+                        lambda s,g: s * g.R / s.sum(),
+                        lambda s,g,m: m.beta * s * (np.repeat(s.sum(),3)-s),
                         lambda df: df['s2'].to_numpy()
                        )
 
@@ -206,12 +215,29 @@ GLMechanism = Mechanism(game,{'beta':0.0005,'alfa':1},
 class ADMMMechanismClass(Mechanism):
     def get_s(self,pandas_df):
         return pandas_df.s2.to_numpy()
-    def x(self,s):
-        return s
-    def t(self,s,prev_s,prev_xm,prev_y):
-        return self.beta * (s - prev_s + prev_xm + prev_y)**2
-    def f(self,s,prev_s,prev_xm,prev_y):
-        return  self.game.u(self.x(s)) - self.t(s,prev_s,prev_xm,prev_y)
+    def restart(self):
+        self.s = np.array( [self.game.R / self.game.n] * self.game.n )
+        self.y = 0 # one history var
+    def if_step(self,s):
+        t = self.beta * ( s - self.s + self.x().mean() - game.R/game.n + self.y )**2
+        return { 'x':s, 't':t, 'f':(self.game.u(s) - t) }
+
+    def step(self, s):
+        self.t = self.beta * ( s - self.s + self.x().mean() - game.R/game.n + self.y )**2
+        self.s = s.copy()
+        self.y += s.mean() - game.R/game.n
+        return { 'x':self.s, 't':self.t, 'f': (self.game.u(self.s) - self.t) }
+
+    def x(self):
+        return self.s
+    def t(self):
+        return self.t
+    def f(self):
+        return self.game.u(self.x()) - self.t
+    #def t(self,s,prev_s,prev_xm,prev_y):
+     #   return self.beta * (s - prev_s + prev_xm + prev_y)**2
+    #def f(self,s,prev_s,prev_xm,prev_y):
+     #   return  self.game.u(self.x(s)) - self.t(s,prev_s,prev_xm,prev_y)
 
 
 # In[48]:
@@ -296,79 +322,85 @@ class NashBargaining:
         for name,group in GroupedData:
             group = group.sort_values(by='GrSubject')
             if name[1] == 1 : # второй элемент - время, т.е. если перешли к новой игре
-                prevg = group
+                Mechanism.restart()
+                prev_s = Mechanism.get_s(group)
+                prev_result = Mechanism.step(s)
+                prev_group = group
                 continue # go to second step
 
             # предыдущие выигрыши
             #fprev = prevg['Gain'].values
-            sprev = Mechanism.get_s(prevg)
-            xprev = Mechanism.x(sprev)
-            tprev = Mechanism.t(sprev)
-            Fprev = Mechanism.game.u(xprev) - tprev
-            Uprev = self.Unash(Fprev,f0)
+            prev_x = prev_result['x']
+            prev_t = prev_result['t']
+            prev_F = prev_result['f']
+            Uprev = self.Unash(prev_F,f0)
             s = Mechanism.get_s(group)
-            s1, s2, s3 = sprev.copy(), sprev.copy(), sprev.copy()
+            s1, s2, s3 = prev_s.copy(), prev_s.copy(), prev_s.copy()
             # действия игроков "по одному", их стремление
             s1[0] = s[0]
             s2[1] = s[1]
             s3[2] = s[2]
 
-            x1 = Mechanism.x(s1)
-            t1 = Mechanism.t(s1)
-            F1 = Mechanism.game.u(x1) - t1
-            ds1 = s1[0] - sprev[0]
-            dx1 = x1[0] - xprev[0]
-            dt1 = t1[0] - tprev[0]
-            F1_more_Fprev = 1.0 if (F1>Fprev+prec).all() else 0.0 # s1 - strong Pareto
-            F1_notless_Fprev = 1.0 if (F1>Fprev-prec).all() else 0.0 # 
-            anyF1_more_Fprev = 1.0 if (F1>Fprev+prec).any() else 0.0 # F1_notless_Fprev and F1any_more_Fprev say that s1 - weak Pareto
-            F11_more_F1prev = 1.0 if (F1[0]>Fprev[0]+prec) else 0.0 # gain of 1 player have increased with s1 bids
+            t_step = Mechanism.if_step(s1)
+            x1 = t_step['x']
+            t1 = t_step['t']
+            F1 = t_step['f']
+            ds1 = s1[0] - prev_s[0]
+            dx1 = x1[0] - prev_x[0]
+            dt1 = t1[0] - prev_t[0]
+            F1_more_Fprev = 1.0 if (F1>prev_F+prec).all() else 0.0 # s1 - strong Pareto
+            F1_notless_Fprev = 1.0 if (F1>prev_F-prec).all() else 0.0 # 
+            anyF1_more_Fprev = 1.0 if (F1>prev_F+prec).any() else 0.0 # F1_notless_Fprev and F1any_more_Fprev say that s1 - weak Pareto
+            F11_more_F1prev = 1.0 if (F1[0]>prev_F[0]+prec) else 0.0 # gain of 1 player have increased with s1 bids
             U1 = self.Unash(F1,f0)
             U1_more_Uprev = 1.0 if U1>Uprev+prec else 0.0
 
-            x2 = Mechanism.x(s2)
-            t2 = Mechanism.t(s2)
-            F2 = Mechanism.game.u(x2) - t2
-            ds2 = s2[1] - sprev[1]
-            dx2 = x2[1] - xprev[1]
-            dt2 = t2[1] - tprev[1]
-            F2_more_Fprev = 1.0 if (F2>Fprev+prec).all() else 0.0 # s2 - strong Pareto
-            F2_notless_Fprev = 1.0 if (F2>Fprev-prec).all() else 0.0 # s2 - weak Pareto
-            anyF2_more_Fprev = 1.0 if (F2>Fprev+prec).any() else 0.0 # F2_notless_Fprev and F2any_more_Fprev say that s2 - weak Pareto
-            F22_more_F2prev = 1.0 if (F2[1]>Fprev[1]+prec) else 0.0
+            t_step = Mechanism.if_step(s2)
+            x2 = t_step['x']
+            t2 = t_step['t']
+            F2 = t_step['f']
+            ds2 = s2[1] - prev_s[1]
+            dx2 = x2[1] - prev_x[1]
+            dt2 = t2[1] - prev_t[1]
+            F2_more_Fprev = 1.0 if (F2>prev_F+prec).all() else 0.0 # s2 - strong Pareto
+            F2_notless_Fprev = 1.0 if (F2>prev_F-prec).all() else 0.0 # s2 - weak Pareto
+            anyF2_more_Fprev = 1.0 if (F2>prev_F+prec).any() else 0.0 # F2_notless_Fprev and F2any_more_Fprev say that s2 - weak Pareto
+            F22_more_F2prev = 1.0 if (F2[1]>prev_F[1]+prec) else 0.0
             U2 = self.Unash(F2,f0)
             U2_more_Uprev = 1.0 if U2>Uprev+prec else 0.0
 
-            x3 = Mechanism.x(s3)
-            t3 = Mechanism.t(s3)
-            F3 = Mechanism.game.u(x3) - t3
-            ds3 = s3[2] - sprev[2]
-            dx3 = x3[2] - xprev[2]
-            dt3 = t3[2] - tprev[2]
-            F3_more_Fprev = 1.0 if (F3>Fprev+prec).all() else 0.0 # s3 - strong Pareto
-            F3_notless_Fprev = 1.0 if (F3>Fprev-prec).all() else 0.0 # s3 - weak Pareto
-            anyF3_more_Fprev = 1.0 if (F3>Fprev+prec).any() else 0.0 # F3_notless_Fprev and F3any_more_Fprev say that s3 - weak Pareto
-            F33_more_F3prev = 1.0 if (F3[2]>Fprev[2]+prec) else 0.0
+            t_step = Mechanism.if_step(s3)
+            x3 = t_step['x']
+            t3 = t_step['t']
+            F3 = t_step['f']
+            ds3 = s3[2] - prev_s[2]
+            dx3 = x3[2] - prev_x[2]
+            dt3 = t3[2] - prev_t[2]
+            F3_more_Fprev = 1.0 if (F3>prev_F+prec).all() else 0.0 # s3 - strong Pareto
+            F3_notless_Fprev = 1.0 if (F3>prev_F-prec).all() else 0.0 # s3 - weak Pareto
+            anyF3_more_Fprev = 1.0 if (F3>prev_F+prec).any() else 0.0 # F3_notless_Fprev and F3any_more_Fprev say that s3 - weak Pareto
+            F33_more_F3prev = 1.0 if (F3[2]>prev_F[2]+prec) else 0.0
             U3 = self.Unash(F3,f0)
             U3_more_Uprev = 1.0 if U3>Uprev+prec else 0.0
 
             Uall_more_Uprev = U1_more_Uprev + U2_more_Uprev + U3_more_Uprev
 
-            Fnew = Mechanism.f(s)
-            Fnew_more_Fprev = 1.0 if (Fnew>Fprev+prec).all() else 0.0 # s - strong Pareto
-            Fnew_notless_Fprev = 1.0 if (Fnew>Fprev-prec).all() else 0.0 # s - weak Pareto
-            anyFnew_more_Fprev = 1.0 if (Fnew>Fprev+prec).any() else 0.0 # Fnew_notless_Fprev and Fnewany_more_Fprev say that s1 - weak Pareto
+            t_step = Mechanism.step(s)
+            Fnew = t_step['f']
+            Fnew_more_Fprev = 1.0 if (Fnew>prev_F+prec).all() else 0.0 # s - strong Pareto
+            Fnew_notless_Fprev = 1.0 if (Fnew>prev_F-prec).all() else 0.0 # s - weak Pareto
+            anyFnew_more_Fprev = 1.0 if (Fnew>prev_F+prec).any() else 0.0 # Fnew_notless_Fprev and Fnewany_more_Fprev say that s1 - weak Pareto
             Unew = self.Unash(Fnew,f0)
             Unew_more_Uprev = 1.0 if Unew>Uprev+prec else 0.0
 
-            Ulocnew = self.Unash(Fnew,Fprev)
+            Ulocnew = self.Unash(Fnew,prev_F)
             Ulocnew_more_Ulocprev = -1.0
             Uloc1_more_Ulocprev = -1.0
             Uloc2_more_Ulocprev = -1.0
             Uloc3_more_Ulocprev = -1.0
-            Uloc1 = self.Unash(F1,Fprev)
-            Uloc2 = self.Unash(F2,Fprev)
-            Uloc3 = self.Unash(F3,Fprev)
+            Uloc1 = self.Unash(F1,prev_F)
+            Uloc2 = self.Unash(F2,prev_F)
+            Uloc3 = self.Unash(F3,prev_F)
             if name[1]>2 :
                 Ulocprev = res[-1][-2]
                 Uloc1_more_Ulocprev = 1.0 if Uloc1 > Ulocprev+prec else 0.0
@@ -383,7 +415,11 @@ class NashBargaining:
                                                           Fnew_notless_Fprev,anyFnew_more_Fprev, F1_notless_Fprev, anyF1_more_Fprev, F2_notless_Fprev,anyF2_more_Fprev, F3_notless_Fprev,anyF3_more_Fprev,
                                                           Uprev, U1,U2,U3, Uloc1,Uloc2,Uloc3, Unew,Ulocnew, Ulocnew_more_Ulocprev,
                                                           ds1, ds2, ds3, dx1, dx2, dx3, dt1, dt2, dt3])] )
-            prevg = group
+            prev_group = group
+            prev_s = s
+            prev_result = t_step
+
+
         data_a = pd.DataFrame(np.vstack(res),
                           columns=['Game','Time','U1>Uprev','U2>Uprev','U3>Uprev','Uloc1>Ulocprev','Uloc2>Ulocprev','Uloc3>Ulocprev',
                                    'Uall>Uprev','Unew>Uprev',
