@@ -318,7 +318,7 @@ class NashBargaining:
             if name[1] == 1 : # второй элемент - время, т.е. если перешли к новой игре
                 Mechanism.restart()
                 prev_s = Mechanism.get_s(group)
-                prev_result = Mechanism.step(s)
+                prev_result = Mechanism.step(prev_s)
                 prev_group = group
                 continue # go to second step
 
