@@ -280,13 +280,7 @@ t3 = np.array([[0,1,2],[1,2,3],[2,3,4]])
 # In[44]:
 
 
-GLMechanism.x(t3)
-
-
-# In[45]:
-
-
-GLMechanism.t(t3)
+GLMechanism.step(t3)
 
 
 # * **Ui>Uprev**           : $ U(s^i(t),d) > U(s(t-1),d),$
